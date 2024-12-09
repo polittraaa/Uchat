@@ -3,10 +3,10 @@
 int init_tables(sqlite3 *db) {
     //  User
     const char *sql_create_user =
-        "CREATE TABLE IF NOT EXISTS user ("
+        "CREATE TABLE IF NOT EXISTS users ("
         "user_id TEXT PRIMARY KEY,"
         "username TEXT NOT NULL UNIQUE,"
-        "contact TEXT UNIQUE,"
+        "phone TEXT UNIQUE,"
         "email TEXT UNIQUE,"
         "password TEXT NOT NULL,"
         "user_ava BLOB"
@@ -37,10 +37,12 @@ int init_tables(sqlite3 *db) {
     //Settings
     const char *sql_create_settings =
         "CREATE TABLE IF NOT EXISTS settings ("
-        "theme TEXT,"
+        "theme TEXT NOT NULL,"
+        "user_id TEXT,"
         "email TEXT,"
-        "contact TEXT,"
+        "phone TEXT,"
         "photo BLOB,"
+        "FOREIGN KEY(phone) REFERENCES user(phone),"
         "FOREIGN KEY(email) REFERENCES user(email),"
         "FOREIGN KEY(photo) REFERENCES user(user_ava)" 
         ");";

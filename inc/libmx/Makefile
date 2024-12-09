@@ -21,7 +21,6 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.c | $(SRCDIR)
 clean:
 	rm -f $(OBJS)
 	rm -rf $(OBJDIR)
-	rm -f $(LIBNAME)
 
 uninstall: clean
 	rm -f $(LIBNAME)

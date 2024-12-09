@@ -23,12 +23,8 @@ static int validate_number(const char *phone_number) {
     return 1;
 }
 
-// static int validate_email(const char *email) {
- 
-// }
-
-int account_registration(sqlite3 *db, add_user *user_data) {
-    char *sql = "INSERT INTO user (user_id, user_ava, username, contact, email, password) VALUES (?, ?, ?, ?, ?, ?)";
+int account_registration(sqlite3 *db, t_add_user *user_data) {
+    char *sql = "INSERT INTO user (user_id, username, phone, email, password, user_ava) VALUES (?, ?, ?, ?, ?, ?)";
     sqlite3_stmt *stmt;
     
     //validation
@@ -59,12 +55,12 @@ int account_registration(sqlite3 *db, add_user *user_data) {
     sqlite3_bind_text(stmt, 5, user_data->password, -1, SQLITE_STATIC);
 
     //photo handling
-    // if (user_data->photo != NULL) {
-    //    bind_photo(stmt, user_data->photo);
-    // }
-    // else {
-    //     sqlite3_bind_null(stmt, 3);
-    // }
+    if (mx_strlen(user_data->photo)> 0) { 
+        bind_photo(stmt, 6, user_data->photo);
+    }
+    else {
+        sqlite3_bind_null(stmt, 6);
+    }
 
     if (sqlite3_step(stmt) != SQLITE_DONE) {
         fprintf(stderr, "Execution failed: %s\n", sqlite3_errmsg(db)); 
@@ -75,15 +71,15 @@ int account_registration(sqlite3 *db, add_user *user_data) {
             fprintf(stderr, "Empty Username field.\n");
             sqlite3_finalize(stmt);
             return -1;
-        } else if (is_data_in_table(db,"user", "username", user_data->username)) {
+        } else if (is_data_in_table(db, "user", "username", user_data->username) == -2) {
             fprintf(stderr, "Username already taken. %s\n", sqlite3_errmsg(db));
             sqlite3_finalize(stmt);
             return -2;
-        } else if (is_data_in_table(db, "user", "email",  user_data->email)) {
+        } else if (is_data_in_table(db, "user", "email",  user_data->email) == -2) {
             fprintf(stderr, "Email is already registered.\n");
             sqlite3_finalize(stmt);
             return -7;
-        } else if (is_data_in_table(db, "user", "phone", user_data->phone)) {
+        } else if (is_data_in_table(db, "user", "phone", user_data->phone) == -2) {
             fprintf(stderr, "Phone number is already registered.\n");
             sqlite3_finalize(stmt);
             return -8;
@@ -97,5 +93,51 @@ int account_registration(sqlite3 *db, add_user *user_data) {
 
     sqlite3_finalize(stmt);
     mx_printstr("Account created successfully.\n");
+    return 0;
+}
+
+int get_profile(sqlite3 *db, t_add_user *user_data, t_add_settings *user_settings, t_user_request *user_id) {
+    if (!db || !user_data || !user_settings || !user_id || mx_strlen(user_id->user_id) == 0) {
+        fprintf(stderr, "Missing or invalid request data.\n");
+        return -2;
+    }
+    sqlite3_stmt *stmt;
+    char *sql = "SELECT u.username, u.email, u.phone, u.user_ava, s.theme "
+                "FROM user u "
+                "LEFT JOIN settings s ON u.user_id = s.user_id "
+                "WHERE u.user_id = ?";
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK ) {
+        fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(db));
+        return -3;
+    }
+
+    if (sqlite3_bind_text(stmt, 1, user_id->user_id, -1, SQLITE_STATIC) != SQLITE_OK) {
+        fprintf(stderr, "Failed to bind user_id: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return -3;
+    }
+
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        mx_strncpy(user_data->username, (const char *)sqlite3_column_text(stmt, 0), sizeof(user_data->username) - 1);
+        mx_strncpy(user_settings->theme, (const char *)sqlite3_column_text(stmt, 1), sizeof(user_settings->theme) - 1);
+        mx_strncpy(user_data->email, (const char *)sqlite3_column_text(stmt, 2), sizeof(user_data->email) - 1);
+        mx_strncpy(user_data->phone, (const char *)sqlite3_column_text(stmt, 3), sizeof(user_data->phone) - 1);
+    
+    //photo handling
+     if (mx_strlen(user_settings->photo) > 0) {
+        bind_photo(stmt, 4, user_settings->photo);
+    }
+    else {
+        sqlite3_bind_null(stmt, 4);
+    }
+
+    } else {
+        fprintf(stderr, "User not found.\n");
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
     return 0;
 }
